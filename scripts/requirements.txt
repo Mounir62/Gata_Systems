@@ -1,0 +1,10 @@
+# Python dependencies for the training server
+torch
+transformers
+peft
+trl
+datasets
+psutil
+fastapi
+uvicorn
+python-multipart
