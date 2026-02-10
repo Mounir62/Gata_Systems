@@ -49,6 +49,7 @@
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
     "formidable": "^3.5.4",
+    "highlight.js": "^11.10.0",
     "input-otp": "1.4.1",
     "katex": "^0.16.28",
     "lucide-react": "^0.544.0",
