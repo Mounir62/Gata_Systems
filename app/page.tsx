@@ -12,6 +12,8 @@ interface Message {
   role: "user" | "assistant"
   content: string
   timestamp: Date
+  model?: string
+  question?: string
 }
 
 interface Conversation {
@@ -177,6 +179,8 @@ export default function ChatPage() {
         role: "assistant",
         content: fullContent || "Sorry, I couldn't generate a response.",
         timestamp: new Date(),
+        model: selectedModel,
+        question: content,
       }
 
       setConversations((prev) =>
@@ -198,6 +202,8 @@ export default function ChatPage() {
         role: "assistant",
         content: "Sorry, I couldn't connect to Ollama. Please make sure Ollama is running locally.",
         timestamp: new Date(),
+        model: selectedModel,
+        question: content,
       }
 
       setConversations((prev) =>
@@ -299,6 +305,7 @@ export default function ChatPage() {
               onDocumentChange={setSelectedDocument}
               complexity={complexity}
               onComplexityChange={setComplexity}
+              selectedModel={selectedModel}
             />
           </main>
         </div>

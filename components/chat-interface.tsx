@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { MarkdownRenderer } from "@/components/markdown-renderer"
-import { Send, Bot, User, Sparkles, Loader2, Copy, Check, Gauge } from "lucide-react"
+import { Send, Bot, User, Sparkles, Loader2, Copy, Check, Gauge, Download } from "lucide-react"
 import { PdfUpload } from "@/components/pdf-upload"
 import {
   DropdownMenu,
@@ -21,6 +21,8 @@ interface Message {
   role: "user" | "assistant"
   content: string
   timestamp: Date
+  model?: string
+  question?: string
 }
 
 interface ChatInterfaceProps {
@@ -32,6 +34,7 @@ interface ChatInterfaceProps {
   onDocumentChange: (filename: string | null) => void
   complexity: string
   onComplexityChange: (complexity: string) => void
+  selectedModel?: string
 }
 
 export function ChatInterface({
@@ -43,11 +46,13 @@ export function ChatInterface({
   onDocumentChange,
   complexity,
   onComplexityChange,
+  selectedModel,
 }: ChatInterfaceProps) {
   const [input, setInput] = React.useState("")
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const inputRef = React.useRef<HTMLTextAreaElement>(null)
   const [copiedId, setCopiedId] = React.useState<string | null>(null)
+  const [downloadingId, setDownloadingId] = React.useState<string | null>(null)
 
   const copyToClipboard = async (text: string, id: string) => {
     try {
@@ -56,6 +61,69 @@ export function ChatInterface({
       setTimeout(() => setCopiedId(null), 2000)
     } catch (err) {
       console.error("Failed to copy:", err)
+    }
+  }
+
+  const downloadAsImage = async (message: Message) => {
+    setDownloadingId(message.id)
+    try {
+      const html2canvas = (await import("html2canvas")).default
+      
+      // Create a temporary container for the image
+      const container = document.createElement("div")
+      container.style.position = "absolute"
+      container.style.left = "-9999px"
+      container.style.padding = "32px"
+      container.style.backgroundColor = "#ffffff"
+      container.style.width = "800px"
+      container.style.fontFamily = "system-ui, -apple-system, sans-serif"
+      document.body.appendChild(container)
+
+      // Create content
+      const content = document.createElement("div")
+      content.innerHTML = `
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 12px; margin-bottom: 24px;">
+          <h2 style="color: white; font-size: 24px; font-weight: bold; margin: 0 0 8px 0;">GATA AI Assistant</h2>
+          <p style="color: rgba(255,255,255,0.9); font-size: 14px; margin: 0;">Model: ${message.model || selectedModel || "Unknown"}</p>
+        </div>
+        <div style="margin-bottom: 20px; padding: 16px; background: #f3f4f6; border-radius: 8px; border-left: 4px solid #667eea;">
+          <p style="font-weight: 600; color: #374151; margin: 0 0 8px 0; font-size: 14px;">Question:</p>
+          <p style="color: #1f2937; margin: 0; line-height: 1.6; font-size: 15px;">${message.question || "N/A"}</p>
+        </div>
+        <div style="padding: 16px; background: #f9fafb; border-radius: 8px; border-left: 4px solid #10b981;">
+          <p style="font-weight: 600; color: #374151; margin: 0 0 8px 0; font-size: 14px;">Answer:</p>
+          <div style="color: #1f2937; line-height: 1.6; font-size: 15px;">${message.content.replace(/\n/g, "<br>")}</div>
+        </div>
+        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center;">
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">${message.timestamp.toLocaleString()}</p>
+        </div>
+      `
+      container.appendChild(content)
+
+      // Capture as canvas
+      const canvas = await html2canvas(container, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+      })
+
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement("a")
+          a.href = url
+          a.download = `gata-response-${Date.now()}.png`
+          a.click()
+          URL.revokeObjectURL(url)
+        }
+      })
+
+      // Clean up
+      document.body.removeChild(container)
+    } catch (err) {
+      console.error("Failed to download image:", err)
+    } finally {
+      setDownloadingId(null)
     }
   }
 
@@ -146,24 +214,45 @@ export function ChatInterface({
                               minute: "2-digit",
                             })}
                           </p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => copyToClipboard(message.content, message.id)}
-                            className="h-6 px-2 text-xs hover:bg-accent"
-                          >
-                            {copiedId === message.id ? (
-                              <>
-                                <Check className="h-3 w-3 mr-1" />
-                                Copied
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="h-3 w-3 mr-1" />
-                                Copy
-                              </>
-                            )}
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyToClipboard(message.content, message.id)}
+                              className="h-6 px-2 text-xs hover:bg-accent"
+                            >
+                              {copiedId === message.id ? (
+                                <>
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Copied
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3 w-3 mr-1" />
+                                  Copy
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => downloadAsImage(message)}
+                              disabled={downloadingId === message.id}
+                              className="h-6 px-2 text-xs hover:bg-accent"
+                            >
+                              {downloadingId === message.id ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Downloading
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="h-3 w-3 mr-1" />
+                                  Image
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       </>
                     ) : (
